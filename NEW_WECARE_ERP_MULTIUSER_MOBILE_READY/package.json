@@ -1,0 +1,13 @@
+{
+  "name": "new-wecare-erp-multiuser",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NEW WE-CARE COMPUTER ERP - mobile and multi-user shared data",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
