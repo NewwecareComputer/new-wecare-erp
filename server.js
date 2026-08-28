@@ -51,7 +51,7 @@ app.put('/api/data',(req,res)=>{
   }catch(e){ res.status(500).json({error:e.message}); }
 });
 
-app.get('*',(req,res)=>{
+app.get('/*splat', (req, res) => {
   res.sendFile(path.join(ROOT,'erp','index.html'));
 });
 
