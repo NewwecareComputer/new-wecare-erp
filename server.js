@@ -44,7 +44,38 @@ app.get('/api/data',(req,res)=>{
 });
 
 app.put('/api/data',(req,res)=>{
-  try{
+app.post('/api/restore', (req, res) => {
+  try {
+    const backup = req.body;
+
+    if (!backup || typeof backup !== 'object') {
+      return res.status(400).json({ error: 'Invalid backup JSON' });
+    }
+
+    // Support your backup format directly:
+    // { company, products, customers, suppliers, sales, purchases, quotations, ... }
+    const data = backup.data && typeof backup.data === 'object'
+      ? backup.data
+      : backup;
+
+    if (!data.company && !data.products && !data.customers) {
+      return res.status(400).json({
+        error: 'This does not look like a valid NEW WE-CARE ERP backup'
+      });
+    }
+
+    const saved = writeStore(data);
+
+    res.json({
+      ok: true,
+      message: 'ERP backup restored successfully',
+      revision: saved.revision
+    });
+  } catch (e) {
+    console.error('Restore error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});  try{
     if(!req.body || typeof req.body!=='object') return res.status(400).json({error:'Invalid ERP data'});
     const store=writeStore(req.body);
     res.json({ok:true,revision:store.revision});
