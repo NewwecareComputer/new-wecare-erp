@@ -1,4 +1,3 @@
-```js
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -25,14 +24,10 @@ function ensureData() {
 
     fs.writeFileSync(
       DATA_FILE,
-      JSON.stringify(
-        {
-          revision: 1,
-          data: bundled
-        },
-        null,
-        2
-      )
+      JSON.stringify({
+        revision: 1,
+        data: bundled
+      }, null, 2)
     );
   }
 }
@@ -66,9 +61,7 @@ function writeStore(data) {
 }
 
 
-/* =========================
-   HEALTH CHECK
-========================= */
+/* HEALTH */
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -78,9 +71,7 @@ app.get('/api/health', (req, res) => {
 });
 
 
-/* =========================
-   GET ERP DATA
-========================= */
+/* GET DATA */
 
 app.get('/api/data', (req, res) => {
   try {
@@ -97,7 +88,6 @@ app.get('/api/data', (req, res) => {
     res.json(store);
 
   } catch (e) {
-
     console.error('Read data error:', e);
 
     res.status(500).json({
@@ -107,9 +97,7 @@ app.get('/api/data', (req, res) => {
 });
 
 
-/* =========================
-   SAVE ERP DATA
-========================= */
+/* SAVE DATA */
 
 app.put('/api/data', (req, res) => {
   try {
@@ -141,9 +129,7 @@ app.put('/api/data', (req, res) => {
 });
 
 
-/* =========================
-   RESTORE JSON BACKUP
-========================= */
+/* RESTORE BACKUP */
 
 app.post('/api/restore', (req, res) => {
   try {
@@ -159,26 +145,6 @@ app.post('/api/restore', (req, res) => {
       });
     }
 
-    /*
-      Supports both:
-
-      {
-        company: {},
-        products: [],
-        customers: []
-      }
-
-      and:
-
-      {
-        revision: 1,
-        data: {
-          company: {},
-          products: []
-        }
-      }
-    */
-
     const data =
       backup.data &&
       typeof backup.data === 'object'
@@ -191,8 +157,7 @@ app.post('/api/restore', (req, res) => {
       !data.customers
     ) {
       return res.status(400).json({
-        error:
-          'This does not look like a valid NEW WE-CARE ERP backup'
+        error: 'Invalid NEW WE-CARE ERP backup'
       });
     }
 
@@ -205,17 +170,13 @@ app.post('/api/restore', (req, res) => {
 
     return res.json({
       ok: true,
-      message:
-        'ERP backup restored successfully',
+      message: 'ERP backup restored successfully',
       revision: saved.revision
     });
 
   } catch (e) {
 
-    console.error(
-      'Restore error:',
-      e
-    );
+    console.error('Restore error:', e);
 
     return res.status(500).json({
       error: e.message
@@ -224,13 +185,9 @@ app.post('/api/restore', (req, res) => {
 });
 
 
-/* =========================
-   FRONTEND
-   MUST BE LAST
-========================= */
+/* FRONTEND - MUST BE LAST */
 
 app.get('/*splat', (req, res) => {
-
   res.sendFile(
     path.join(
       ROOT,
@@ -238,13 +195,10 @@ app.get('/*splat', (req, res) => {
       'index.html'
     )
   );
-
 });
 
 
-/* =========================
-   START SERVER
-========================= */
+/* START */
 
 ensureData();
 
@@ -257,4 +211,3 @@ app.listen(
     );
   }
 );
-```
