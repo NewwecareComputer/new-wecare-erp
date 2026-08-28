@@ -1,1 +1,202 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#401477"><title>New We-Care Computer ERP</title><link rel="stylesheet" href="assets/style.css"></head><body><div class="app"><aside class="sidebar"><div class="brand">NEW WE-CARE<br><span>COMPUTER ERP</span></div><button class="nav active" data-page="dashboard">Dashboard</button><button class="nav" data-page="products">Inventory</button><button class="nav" data-page="customers">Customers</button><button class="nav" data-page="suppliers">Suppliers</button><button class="nav" data-page="sales">Sales Bill</button><button class="nav" data-page="quotations">Quotation</button><button class="nav" data-page="purchases">Purchase</button><button class="nav" data-page="company">Company Profile</button><button class="nav" data-page="reports">Reports</button><button class="nav" data-page="settings">Settings</button></aside><main><button class="mobileMenu" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button><header><div><h1 id="pageTitle">Dashboard</h1><small>CCTV • Computer • Printer • Networking • Security Solutions</small></div><button class="primary" onclick="exportData()">Export Backup</button></header><section id="content"></section></main><div class="bottomNav"><button onclick="render('dashboard')">🏠<small>Home</small></button><button onclick="render('sales')">🧾<small>Sales</small></button><button onclick="render('quotations')">📄<small>Quote</small></button><button onclick="render('purchases')">🛒<small>Purchase</small></button></div></div><script src="assets/app.js"></script></body></html>
+```html
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#401477">
+  <title>New We-Care Computer ERP</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      NEW WE-CARE<br>
+      <span>COMPUTER ERP</span>
+    </div>
+
+    <button class="nav active" data-page="dashboard">Dashboard</button>
+    <button class="nav" data-page="products">Inventory</button>
+    <button class="nav" data-page="customers">Customers</button>
+    <button class="nav" data-page="suppliers">Suppliers</button>
+    <button class="nav" data-page="sales">Sales Bill</button>
+    <button class="nav" data-page="quotations">Quotation</button>
+    <button class="nav" data-page="purchases">Purchase</button>
+    <button class="nav" data-page="company">Company Profile</button>
+    <button class="nav" data-page="reports">Reports</button>
+    <button class="nav" data-page="settings">Settings</button>
+  </aside>
+
+  <main>
+    <button
+      class="mobileMenu"
+      onclick="document.querySelector('.sidebar').classList.toggle('open')">
+      ☰
+    </button>
+
+    <header>
+      <div>
+        <h1 id="pageTitle">Dashboard</h1>
+        <small>
+          CCTV • Computer • Printer • Networking • Security Solutions
+        </small>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+
+        <button class="primary" onclick="exportData()">
+          Export Backup
+        </button>
+
+        <button
+          class="primary"
+          type="button"
+          onclick="document.getElementById('restoreFile').click()">
+          Restore Backup
+        </button>
+
+        <input
+          id="restoreFile"
+          type="file"
+          accept=".json,application/json"
+          style="display:none"
+          onchange="restoreERPBackup(event)"
+        >
+
+      </div>
+    </header>
+
+    <section id="content"></section>
+  </main>
+
+  <div class="bottomNav">
+    <button onclick="render('dashboard')">
+      🏠<small>Home</small>
+    </button>
+
+    <button onclick="render('sales')">
+      🧾<small>Sales</small>
+    </button>
+
+    <button onclick="render('quotations')">
+      📄<small>Quote</small>
+    </button>
+
+    <button onclick="render('purchases')">
+      🛒<small>Purchase</small>
+    </button>
+  </div>
+
+</div>
+
+<script src="assets/app.js"></script>
+
+<script>
+async function restoreERPBackup(event) {
+  const file = event.target.files[0];
+
+  if (!file) return;
+
+  if (!file.name.toLowerCase().endsWith('.json')) {
+    alert('Please select a JSON backup file.');
+    event.target.value = '';
+    return;
+  }
+
+  try {
+    const text = await file.text();
+    const backup = JSON.parse(text);
+
+    const data =
+      backup &&
+      backup.data &&
+      typeof backup.data === 'object'
+        ? backup.data
+        : backup;
+
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid backup format.');
+    }
+
+    const productCount = Array.isArray(data.products)
+      ? data.products.length
+      : 0;
+
+    const customerCount = Array.isArray(data.customers)
+      ? data.customers.length
+      : 0;
+
+    const supplierCount = Array.isArray(data.suppliers)
+      ? data.suppliers.length
+      : 0;
+
+    const salesCount = Array.isArray(data.sales)
+      ? data.sales.length
+      : 0;
+
+    const quotationCount = Array.isArray(data.quotations)
+      ? data.quotations.length
+      : 0;
+
+    const purchaseCount = Array.isArray(data.purchases)
+      ? data.purchases.length
+      : 0;
+
+    const message =
+      'RESTORE THIS BACKUP?\\n\\n' +
+      'Products: ' + productCount + '\\n' +
+      'Customers: ' + customerCount + '\\n' +
+      'Suppliers: ' + supplierCount + '\\n' +
+      'Sales: ' + salesCount + '\\n' +
+      'Quotations: ' + quotationCount + '\\n' +
+      'Purchases: ' + purchaseCount + '\\n\\n' +
+      'This will OVERWRITE the current ERP data on Render.';
+
+    if (!confirm(message)) {
+      event.target.value = '';
+      return;
+    }
+
+    const response = await fetch('/api/restore', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.ok) {
+      throw new Error(result.error || 'Restore failed.');
+    }
+
+    alert(
+      '✅ Backup restored successfully!\\n\\n' +
+      'Revision: ' + result.revision +
+      '\\n\\nThe ERP will now reload.'
+    );
+
+    event.target.value = '';
+
+    window.location.reload();
+
+  } catch (error) {
+    console.error('Restore error:', error);
+
+    alert(
+      '❌ Restore failed.\\n\\n' +
+      error.message
+    );
+
+    event.target.value = '';
+  }
+}
+</script>
+
+</body>
+</html>
+```
