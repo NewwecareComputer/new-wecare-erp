@@ -220,5 +220,260 @@ function docHtml(type,q){
  <div class="footer">${esc(c.footer)}</div></div><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`;
 }
 function printDoc(type,i){let q=(type==='Quotation'?db.quotations:type==='Sales Bill'?db.sales:db.purchases)[i];let w=window.open('','_blank');if(!w)return alert('Please allow pop-ups.');w.document.write(docHtml(type,q));w.document.close()}
-function reports(c){let s=db.sales.reduce((a,x)=>a+Number(x.total||0),0),p=db.purchases.reduce((a,x)=>a+Number(x.total||0),0),q=db.quotations.reduce((a,x)=>a+Number(x.total||0),0);c.innerHTML=`<div class="cardgrid"><div class="card"><div class="label">Sales Total</div><div class="value">${money(s)}</div></div><div class="card"><div class="label">Purchase Total</div><div class="value">${money(p)}</div></div><div class="card"><div class="label">Quotation Total</div><div class="value">${money(q)}</div></div><div class="card"><div class="label">Inventory Items</div><div class="value">${db.products.length}</div></div></div>`}
+```javascript
+function restoreBundledBackup(){
+
+  const input = document.createElement('input');
+
+  input.type = 'file';
+  input.accept = '.json,application/json';
+
+  input.onchange = function(e){
+
+    const file = e.target.files && e.target.files[0];
+
+    if(!file){
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = function(){
+
+      try{
+
+        // ==============================
+        // READ UPLOADED JSON
+        // ==============================
+
+        const imported = JSON.parse(reader.result);
+
+        if(!imported || typeof imported !== 'object'){
+          throw new Error('Invalid JSON backup file');
+        }
+
+        // ==============================
+        // BASIC VALIDATION
+        // ==============================
+
+        if(!Array.isArray(imported.products)){
+          throw new Error(
+            'Invalid ERP backup: Products data not found'
+          );
+        }
+
+        // ==============================
+        // CONFIRM RESTORE
+        // ==============================
+
+        const productCount = imported.products?.length || 0;
+        const quotationCount = imported.quotations?.length || 0;
+        const salesCount = imported.sales?.length || 0;
+        const purchaseCount = imported.purchases?.length || 0;
+        const customerCount = imported.customers?.length || 0;
+        const brandCount = imported.brands?.length || 0;
+
+        const ok = confirm(
+          'RESTORE THIS BACKUP?\\n\\n' +
+
+          'Products: ' + productCount + '\\n' +
+          'Quotations: ' + quotationCount + '\\n' +
+          'Sales: ' + salesCount + '\\n' +
+          'Purchases: ' + purchaseCount + '\\n' +
+          'Customers: ' + customerCount + '\\n' +
+          'Brands: ' + brandCount + '\\n\\n' +
+
+          'Current browser data will be replaced.'
+        );
+
+        if(!ok){
+          return;
+        }
+
+        // ==============================
+        // IMPORTANT:
+        // USE UPLOADED DATA ONLY
+        // ==============================
+
+        db = JSON.parse(JSON.stringify(imported));
+
+        // ==============================
+        // MAKE SURE ALL ERP SECTIONS EXIST
+        // ==============================
+
+        if(!db.company){
+          db.company = {};
+        }
+
+        if(!Array.isArray(db.products)){
+          db.products = [];
+        }
+
+        if(!Array.isArray(db.customers)){
+          db.customers = [];
+        }
+
+        if(!Array.isArray(db.suppliers)){
+          db.suppliers = [];
+        }
+
+        if(!Array.isArray(db.sales)){
+          db.sales = [];
+        }
+
+        if(!Array.isArray(db.purchases)){
+          db.purchases = [];
+        }
+
+        if(!Array.isArray(db.quotations)){
+          db.quotations = [];
+        }
+
+        if(!Array.isArray(db.brands)){
+          db.brands = [];
+        }
+
+        if(!db.itemBrandRates ||
+           typeof db.itemBrandRates !== 'object'){
+
+          db.itemBrandRates = {};
+        }
+
+        // ==============================
+        // REBUILD ITEM / BRAND RATES
+        // ==============================
+
+        db.products.forEach(function(p){
+
+          const itemName =
+            String(p.name || '').trim();
+
+          const brand =
+            String(p.brand || '').trim();
+
+          if(!itemName || !brand){
+            return;
+          }
+
+          if(!db.itemBrandRates[itemName]){
+            db.itemBrandRates[itemName] = {};
+          }
+
+          if(!db.itemBrandRates[itemName][brand]){
+            db.itemBrandRates[itemName][brand] = {};
+          }
+
+          const rate =
+            db.itemBrandRates[itemName][brand];
+
+          if(
+            p.sell !== undefined &&
+            p.sell !== null &&
+            Number(p.sell) > 0 &&
+            rate.sell == null
+          ){
+            rate.sell = Number(p.sell);
+          }
+
+          if(
+            p.buy !== undefined &&
+            p.buy !== null &&
+            Number(p.buy) > 0 &&
+            rate.buy == null
+          ){
+            rate.buy = Number(p.buy);
+          }
+
+        });
+
+        // ==============================
+        // SAVE ACTUAL UPLOADED DATA
+        // ==============================
+
+        localStorage.setItem(
+          'new_wecare_erp_v4',
+          JSON.stringify(db)
+        );
+
+        // ==============================
+        // VERIFY SAVE
+        // ==============================
+
+        const verify =
+          JSON.parse(
+            localStorage.getItem(
+              'new_wecare_erp_v4'
+            )
+          );
+
+        if(!verify){
+          throw new Error(
+            'ERP data could not be saved'
+          );
+        }
+
+        // ==============================
+        // RELOAD PAGE
+        // ==============================
+
+        alert(
+          'BACKUP RESTORED SUCCESSFULLY!\\n\\n' +
+
+          'Products: ' +
+          verify.products.length + '\\n' +
+
+          'Quotations: ' +
+          (verify.quotations?.length || 0) + '\\n' +
+
+          'Sales: ' +
+          (verify.sales?.length || 0) + '\\n' +
+
+          'Purchases: ' +
+          (verify.purchases?.length || 0) + '\\n' +
+
+          'Customers: ' +
+          (verify.customers?.length || 0) + '\\n' +
+
+          'Brands: ' +
+          (verify.brands?.length || 0)
+        );
+
+        // Force application to reload
+        // so old in-memory db cannot come back
+        location.reload();
+
+      }
+      catch(err){
+
+        console.error(
+          'ERP RESTORE ERROR:',
+          err
+        );
+
+        alert(
+          'BACKUP RESTORE FAILED!\\n\\n' +
+          err.message
+        );
+
+      }
+
+    };
+
+    reader.onerror = function(){
+
+      alert(
+        'Could not read the backup file.'
+      );
+
+    };
+
+    reader.readAsText(file);
+
+  };
+
+  input.click();
+
+}
+```
+
 function settings(c){c.innerHTML=`<div class="panel"><h3>Backup / Data</h3><button class="primary" onclick="exportData()">Download JSON Backup</button> <button onclick="restoreBundledBackup()">Restore Uploaded Backup</button> <button class="danger" onclick="resetData()">Reset All Data</button><p class="muted">Company profile, quotations, sales bills, purchases, customers and inventory are stored in this browser.</p></div>`}function exportData(){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:'application/json'}));a.download='new-wecare-erp-backup.json';a.click()}function restoreBundledBackup(){if(confirm('Restore the uploaded NEW WE-CARE backup? Current ERP data in this browser will be replaced.')){db=JSON.parse(JSON.stringify(bundledBackup));save();render('dashboard');alert('Backup restored successfully.')}} function resetData(){if(confirm('Erase all ERP data?')){db=JSON.parse(JSON.stringify(defaults));save();render('dashboard')}}render('dashboard');
