@@ -1,0 +1,1 @@
+{"name":"new-wecare-erp","version":"1.0.0","private":true,"type":"commonjs","scripts":{"start":"node server.js"},"dependencies":{"bcryptjs":"^2.4.3","express":"^5.1.0","pg":"^8.16.3"}}

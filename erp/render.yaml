@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: new-wecare-erp
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false

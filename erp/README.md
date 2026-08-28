@@ -22,3 +22,10 @@ Updated features:
 
 
 Format update: Quotation print now follows the supplied reference JPEG layout, while Sales Bill uses a separate Tax Invoice layout. Purchase remains a separate Purchase Bill layout.
+
+
+### Added CCTV Service Modules
+- Delivery Challan: customer-wise dispatch/return/installation/service challan with product, brand, model, serial number and quantity.
+- Product Warranty IN / OUT: customer-wise warranty/service intake and return tracking with serial, MAC address, IP address, warranty date, status and service notes.
+- CCTV Project: customer-wise project register with camera/device, brand, camera model, serial number, MAC address, IP address, quantity and remarks, plus A4 print/PDF.
+- Existing Quotation, Sales Bill and Purchase screens and their print formats are kept unchanged.
