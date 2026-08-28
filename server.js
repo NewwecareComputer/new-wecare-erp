@@ -8,53 +8,41 @@ const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
 const ROOT = __dirname;
 
-// Render Persistent Disk હોય તો ERP_DATA_FILE environment variableમાં
-// /var/data/erp-data.json આપવું.
-// નહીં હોય તો projectના data folderમાં save થશે.
-const DATA_FILE =
-  process.env.ERP_DATA_FILE ||
-  path.join(ROOT, 'data', 'erp-data.json');
+const DATA_DIR = path.join(ROOT, 'data');
+const DATA_FILE = path.join(DATA_DIR, 'erp-data.json');
+const INITIAL_FILE = path.join(DATA_DIR, 'initial-data.json');
 
-const INITIAL_FILE =
-  path.join(ROOT, 'data', 'initial-data.json');
+app.use(express.json({ limit: '20mb' }));
 
-app.use(express.json({ limit: '10mb' }));
+// Prevent browser/proxy caching API data
+app.use('/api', (req, res, next) => {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    'Surrogate-Control': 'no-store'
+  });
+  next();
+});
 
-// Frontend
-app.use(
-  express.static(path.join(ROOT, 'erp'), {
-    etag: false,
-    maxAge: 0
-  })
-);
-
-/* =========================================================
-   DATA FUNCTIONS
-========================================================= */
+app.use(express.static(path.join(ROOT, 'erp'), {
+  etag: false,
+  lastModified: false,
+  maxAge: 0
+}));
 
 function ensureData() {
-  const dataDir = path.dirname(DATA_FILE);
-
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
   }
 
-  // IMPORTANT:
-  // Existing old data will NEVER be overwritten here.
   if (!fs.existsSync(DATA_FILE)) {
     let initialData = {};
 
     if (fs.existsSync(INITIAL_FILE)) {
-      try {
-        initialData = JSON.parse(
-          fs.readFileSync(INITIAL_FILE, 'utf8')
-        );
-      } catch (error) {
-        console.error(
-          'Initial data JSON error:',
-          error.message
-        );
-      }
+      initialData = JSON.parse(
+        fs.readFileSync(INITIAL_FILE, 'utf8')
+      );
     }
 
     fs.writeFileSync(
@@ -66,8 +54,7 @@ function ensureData() {
         },
         null,
         2
-      ),
-      'utf8'
+      )
     );
   }
 }
@@ -75,32 +62,9 @@ function ensureData() {
 function readStore() {
   ensureData();
 
-  const raw = fs.readFileSync(
-    DATA_FILE,
-    'utf8'
+  return JSON.parse(
+    fs.readFileSync(DATA_FILE, 'utf8')
   );
-
-  const store = JSON.parse(raw);
-
-  // Safety for old files
-  if (
-    !store ||
-    typeof store !== 'object'
-  ) {
-    throw new Error(
-      'Invalid ERP data store'
-    );
-  }
-
-  if (!store.data) {
-    store.data = {};
-  }
-
-  if (!store.revision) {
-    store.revision = 1;
-  }
-
-  return store;
 }
 
 function writeStore(data) {
@@ -109,375 +73,307 @@ function writeStore(data) {
   const current = readStore();
 
   const next = {
-    revision:
-      Number(current.revision || 0) + 1,
-
+    revision: Number(current.revision || 0) + 1,
     data: data
   };
 
-  const tempFile =
-    DATA_FILE + '.tmp';
+  const tempFile = DATA_FILE + '.tmp';
 
   fs.writeFileSync(
     tempFile,
-    JSON.stringify(
-      next,
-      null,
-      2
-    ),
+    JSON.stringify(next, null, 2),
     'utf8'
   );
 
-  fs.renameSync(
-    tempFile,
-    DATA_FILE
-  );
+  fs.renameSync(tempFile, DATA_FILE);
 
   return next;
 }
 
-/* =========================================================
+
+/* =========================
    HEALTH
-========================================================= */
+========================= */
 
-app.get(
-  '/api/health',
-  (req, res) => {
-    res.set(
-      'Cache-Control',
-      'no-store, no-cache, must-revalidate, proxy-revalidate'
-    );
+app.get('/api/health', (req, res) => {
+  res.json({
+    ok: true,
+    service: 'NEW WE-CARE ERP'
+  });
+});
 
-    res.json({
-      ok: true,
-      service: 'NEW WE-CARE ERP'
+
+/* =========================
+   GET DATA
+========================= */
+
+app.get('/api/data', (req, res) => {
+  try {
+    const store = readStore();
+
+    if (req.query.meta === '1') {
+      return res.json({
+        revision: store.revision
+      });
+    }
+
+    return res.json(store);
+
+  } catch (error) {
+    console.error('GET DATA ERROR:', error);
+
+    return res.status(500).json({
+      error: error.message
     });
   }
-);
+});
 
-/* =========================================================
-   GET ERP DATA
-========================================================= */
 
-app.get(
-  '/api/data',
-  (req, res) => {
-    try {
-      const store = readStore();
+/* =========================
+   SAVE DATA
+========================= */
 
-      // NEVER cache ERP data
-      res.set({
-        'Cache-Control':
-          'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      });
-
-      if (req.query.meta === '1') {
-        return res.json({
-          revision: store.revision
-        });
-      }
-
-      return res.json(store);
-
-    } catch (error) {
-      console.error(
-        'GET /api/data ERROR:',
-        error
-      );
-
-      return res.status(500).json({
-        error: error.message
+app.put('/api/data', (req, res) => {
+  try {
+    if (
+      !req.body ||
+      typeof req.body !== 'object'
+    ) {
+      return res.status(400).json({
+        error: 'Invalid ERP data'
       });
     }
+
+    const saved = writeStore(req.body);
+
+    console.log(
+      'ERP data saved. Revision:',
+      saved.revision
+    );
+
+    return res.json({
+      ok: true,
+      revision: saved.revision
+    });
+
+  } catch (error) {
+    console.error('SAVE DATA ERROR:', error);
+
+    return res.status(500).json({
+      error: error.message
+    });
   }
-);
+});
 
-/* =========================================================
-   SAVE ERP DATA
-========================================================= */
 
-app.put(
-  '/api/data',
-  (req, res) => {
-    try {
-      if (
-        !req.body ||
-        typeof req.body !== 'object' ||
-        Array.isArray(req.body)
-      ) {
-        return res.status(400).json({
-          error: 'Invalid ERP data'
-        });
-      }
-
-      const saved =
-        writeStore(req.body);
-
-      console.log(
-        'ERP data saved. Revision:',
-        saved.revision
-      );
-
-      return res.json({
-        ok: true,
-        revision:
-          saved.revision
-      });
-
-    } catch (error) {
-      console.error(
-        'PUT /api/data ERROR:',
-        error
-      );
-
-      return res.status(500).json({
-        error: error.message
-      });
-    }
-  }
-);
-
-/* =========================================================
+/* =========================
    RESTORE BACKUP
-========================================================= */
+========================= */
 
-app.post(
-  '/api/restore',
-  (req, res) => {
-    try {
-      const backup = req.body;
+app.post('/api/restore', (req, res) => {
+  try {
+    const backup = req.body;
 
-      if (
-        !backup ||
-        typeof backup !== 'object' ||
-        Array.isArray(backup)
-      ) {
-        return res.status(400).json({
-          error:
-            'Invalid backup JSON'
-        });
+    if (
+      !backup ||
+      typeof backup !== 'object'
+    ) {
+      return res.status(400).json({
+        error: 'Invalid backup JSON'
+      });
+    }
+
+    /*
+      Supports:
+
+      1.
+      {
+        company: {},
+        products: [],
+        customers: [],
+        ...
       }
 
-      /*
-        Supports:
-
-        FORMAT 1
-
-        {
+      2.
+      {
+        revision: 3,
+        data: {
           company: {},
           products: [],
           customers: [],
-          suppliers: [],
-          sales: [],
-          quotations: [],
-          purchases: []
+          ...
         }
-
-
-        FORMAT 2
-
-        {
-          revision: 3,
-          data: {
-            company: {},
-            products: [],
-            customers: [],
-            suppliers: [],
-            sales: [],
-            quotations: [],
-            purchases: []
-          }
-        }
-      */
-
-      let data = backup;
-
-      if (
-        backup.data &&
-        typeof backup.data === 'object' &&
-        !Array.isArray(
-          backup.data
-        )
-      ) {
-        data = backup.data;
       }
+    */
 
-      const validERPData =
-        data.company ||
-        Array.isArray(
-          data.products
-        ) ||
-        Array.isArray(
-          data.customers
-        ) ||
-        Array.isArray(
-          data.suppliers
-        ) ||
-        Array.isArray(
-          data.sales
-        ) ||
-        Array.isArray(
-          data.quotations
-        ) ||
-        Array.isArray(
-          data.purchases
-        );
+    let data;
 
-      if (!validERPData) {
-        return res.status(400).json({
-          error:
-            'This does not look like a valid NEW WE-CARE ERP backup'
-        });
-      }
+    if (
+      backup.data &&
+      typeof backup.data === 'object' &&
+      !Array.isArray(backup.data)
+    ) {
+      data = backup.data;
+    } else {
+      data = backup;
+    }
 
-      // Save restored backup
-      const saved =
-        writeStore(data);
+    /*
+      Basic validation
+    */
 
-      console.log(
-        '================================'
-      );
+    const hasERPData =
+      data.company ||
+      Array.isArray(data.products) ||
+      Array.isArray(data.customers) ||
+      Array.isArray(data.suppliers) ||
+      Array.isArray(data.sales) ||
+      Array.isArray(data.quotations) ||
+      Array.isArray(data.purchases);
 
-      console.log(
-        'ERP BACKUP RESTORED'
-      );
-
-      console.log(
-        'Revision:',
-        saved.revision
-      );
-
-      console.log(
-        'Products:',
-        Array.isArray(data.products)
-          ? data.products.length
-          : 0
-      );
-
-      console.log(
-        'Customers:',
-        Array.isArray(data.customers)
-          ? data.customers.length
-          : 0
-      );
-
-      console.log(
-        'Suppliers:',
-        Array.isArray(data.suppliers)
-          ? data.suppliers.length
-          : 0
-      );
-
-      console.log(
-        'Sales:',
-        Array.isArray(data.sales)
-          ? data.sales.length
-          : 0
-      );
-
-      console.log(
-        'Quotations:',
-        Array.isArray(data.quotations)
-          ? data.quotations.length
-          : 0
-      );
-
-      console.log(
-        'Purchases:',
-        Array.isArray(data.purchases)
-          ? data.purchases.length
-          : 0
-      );
-
-      console.log(
-        '================================'
-      );
-
-      return res.json({
-        ok: true,
-
-        message:
-          'ERP backup restored successfully',
-
-        revision:
-          saved.revision,
-
-        counts: {
-          products:
-            Array.isArray(data.products)
-              ? data.products.length
-              : 0,
-
-          customers:
-            Array.isArray(data.customers)
-              ? data.customers.length
-              : 0,
-
-          suppliers:
-            Array.isArray(data.suppliers)
-              ? data.suppliers.length
-              : 0,
-
-          sales:
-            Array.isArray(data.sales)
-              ? data.sales.length
-              : 0,
-
-          quotations:
-            Array.isArray(data.quotations)
-              ? data.quotations.length
-              : 0,
-
-          purchases:
-            Array.isArray(data.purchases)
-              ? data.purchases.length
-              : 0
-        }
-      });
-
-    } catch (error) {
-      console.error(
-        'POST /api/restore ERROR:',
-        error
-      );
-
-      return res.status(500).json({
-        error: error.message
+    if (!hasERPData) {
+      return res.status(400).json({
+        error:
+          'This does not look like a valid NEW WE-CARE ERP backup'
       });
     }
-  }
-);
 
-/* =========================================================
-   FRONTEND FALLBACK
-   MUST BE LAST
-========================================================= */
+    /*
+      IMPORTANT:
+      Directly replace current server data.
+    */
 
-app.get(
-  '*splat',
-  (req, res) => {
-    res.set({
-      'Cache-Control':
-        'no-store, no-cache, must-revalidate, proxy-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
+    const saved = writeStore(data);
+
+    /*
+      Verify immediately after writing.
+    */
+
+    const verify = readStore();
+
+    console.log(
+      '======================================'
+    );
+
+    console.log(
+      'ERP BACKUP RESTORED'
+    );
+
+    console.log(
+      'Revision:',
+      verify.revision
+    );
+
+    console.log(
+      'Products:',
+      Array.isArray(verify.data.products)
+        ? verify.data.products.length
+        : 0
+    );
+
+    console.log(
+      'Customers:',
+      Array.isArray(verify.data.customers)
+        ? verify.data.customers.length
+        : 0
+    );
+
+    console.log(
+      'Suppliers:',
+      Array.isArray(verify.data.suppliers)
+        ? verify.data.suppliers.length
+        : 0
+    );
+
+    console.log(
+      'Sales:',
+      Array.isArray(verify.data.sales)
+        ? verify.data.sales.length
+        : 0
+    );
+
+    console.log(
+      'Quotations:',
+      Array.isArray(verify.data.quotations)
+        ? verify.data.quotations.length
+        : 0
+    );
+
+    console.log(
+      'Purchases:',
+      Array.isArray(verify.data.purchases)
+        ? verify.data.purchases.length
+        : 0
+    );
+
+    console.log(
+      '======================================'
+    );
+
+    return res.json({
+      ok: true,
+      message: 'ERP backup restored successfully',
+      revision: saved.revision,
+
+      counts: {
+        products: Array.isArray(data.products)
+          ? data.products.length
+          : 0,
+
+        customers: Array.isArray(data.customers)
+          ? data.customers.length
+          : 0,
+
+        suppliers: Array.isArray(data.suppliers)
+          ? data.suppliers.length
+          : 0,
+
+        sales: Array.isArray(data.sales)
+          ? data.sales.length
+          : 0,
+
+        quotations: Array.isArray(data.quotations)
+          ? data.quotations.length
+          : 0,
+
+        purchases: Array.isArray(data.purchases)
+          ? data.purchases.length
+          : 0
+      }
     });
 
-    return res.sendFile(
-      path.join(
-        ROOT,
-        'erp',
-        'index.html'
-      )
+  } catch (error) {
+    console.error(
+      'RESTORE ERROR:',
+      error
     );
-  }
-);
 
-/* =========================================================
-   START SERVER
-========================================================= */
+    return res.status(500).json({
+      error: error.message
+    });
+  }
+});
+
+
+/* =========================
+   FRONTEND
+   MUST BE LAST
+========================= */
+
+app.get('*splat', (req, res) => {
+  res.sendFile(
+    path.join(
+      ROOT,
+      'erp',
+      'index.html'
+    )
+  );
+});
+
+
+/* =========================
+   START
+========================= */
 
 ensureData();
 
@@ -486,23 +382,7 @@ app.listen(
   HOST,
   () => {
     console.log(
-      '================================'
-    );
-
-    console.log(
-      'NEW WE-CARE ERP STARTED'
-    );
-
-    console.log(
-      `PORT: ${PORT}`
-    );
-
-    console.log(
-      `DATA FILE: ${DATA_FILE}`
-    );
-
-    console.log(
-      '================================'
+      `NEW WE-CARE ERP running on http://${HOST}:${PORT}`
     );
   }
 );
