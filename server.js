@@ -7,27 +7,44 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
 const ROOT = __dirname;
-const DATA_FILE = path.join(ROOT, 'data', 'erp-data.json');
+
+const DATA_DIR = path.join(ROOT, 'data');
+const DATA_FILE = path.join(DATA_DIR, 'erp-data.json');
+const INITIAL_FILE = path.join(DATA_DIR, 'initial-data.json');
 
 app.use(express.json({ limit: '10mb' }));
+
+// Frontend
 app.use(express.static(path.join(ROOT, 'erp')));
 
-function ensureData() {
-  const dir = path.dirname(DATA_FILE);
+/* =========================
+   DATA FUNCTIONS
+========================= */
 
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+function ensureData() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
   }
 
   if (!fs.existsSync(DATA_FILE)) {
-    const bundled = require('./data/initial-data.json');
+    let initialData = {};
+
+    if (fs.existsSync(INITIAL_FILE)) {
+      initialData = JSON.parse(
+        fs.readFileSync(INITIAL_FILE, 'utf8')
+      );
+    }
 
     fs.writeFileSync(
       DATA_FILE,
-      JSON.stringify({
-        revision: 1,
-        data: bundled
-      }, null, 2)
+      JSON.stringify(
+        {
+          revision: 1,
+          data: initialData
+        },
+        null,
+        2
+      )
     );
   }
 }
@@ -48,20 +65,21 @@ function writeStore(data) {
     data: data
   };
 
-  const tmp = DATA_FILE + '.tmp';
+  const tempFile = DATA_FILE + '.tmp';
 
   fs.writeFileSync(
-    tmp,
+    tempFile,
     JSON.stringify(next, null, 2)
   );
 
-  fs.renameSync(tmp, DATA_FILE);
+  fs.renameSync(tempFile, DATA_FILE);
 
   return next;
 }
 
-
-/* HEALTH */
+/* =========================
+   HEALTH CHECK
+========================= */
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -70,8 +88,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-
-/* GET DATA */
+/* =========================
+   GET ERP DATA
+========================= */
 
 app.get('/api/data', (req, res) => {
   try {
@@ -85,77 +104,108 @@ app.get('/api/data', (req, res) => {
 
     res.set('Cache-Control', 'no-store');
 
-    res.json(store);
+    return res.json(store);
 
-  } catch (e) {
-    console.error('Read data error:', e);
+  } catch (error) {
+    console.error('GET DATA ERROR:', error);
 
-    res.status(500).json({
-      error: e.message
+    return res.status(500).json({
+      error: error.message
     });
   }
 });
 
-
-/* SAVE DATA */
+/* =========================
+   SAVE ERP DATA
+========================= */
 
 app.put('/api/data', (req, res) => {
   try {
-
     if (
       !req.body ||
-      typeof req.body !== 'object'
+      typeof req.body !== 'object' ||
+      Array.isArray(req.body)
     ) {
       return res.status(400).json({
         error: 'Invalid ERP data'
       });
     }
 
-    const store = writeStore(req.body);
+    const saved = writeStore(req.body);
 
-    res.json({
+    return res.json({
       ok: true,
-      revision: store.revision
+      revision: saved.revision
     });
 
-  } catch (e) {
+  } catch (error) {
+    console.error('SAVE DATA ERROR:', error);
 
-    console.error('Save data error:', e);
-
-    res.status(500).json({
-      error: e.message
+    return res.status(500).json({
+      error: error.message
     });
   }
 });
 
-
-/* RESTORE BACKUP */
+/* =========================
+   RESTORE JSON BACKUP
+========================= */
 
 app.post('/api/restore', (req, res) => {
   try {
-
     const backup = req.body;
 
     if (
       !backup ||
-      typeof backup !== 'object'
+      typeof backup !== 'object' ||
+      Array.isArray(backup)
     ) {
       return res.status(400).json({
         error: 'Invalid backup JSON'
       });
     }
 
+    /*
+      Supports both formats:
+
+      1)
+      {
+        company: {},
+        products: [],
+        customers: [],
+        suppliers: [],
+        sales: [],
+        quotations: [],
+        purchases: []
+      }
+
+      2)
+      {
+        revision: 3,
+        data: {
+          company: {},
+          products: []
+        }
+      }
+    */
+
     const data =
       backup.data &&
-      typeof backup.data === 'object'
+      typeof backup.data === 'object' &&
+      !Array.isArray(backup.data)
         ? backup.data
         : backup;
 
-    if (
-      !data.company &&
-      !data.products &&
-      !data.customers
-    ) {
+    const hasERPData =
+      data.company ||
+      Array.isArray(data.products) ||
+      Array.isArray(data.customers) ||
+      Array.isArray(data.suppliers) ||
+      Array.isArray(data.sales) ||
+      Array.isArray(data.quotations) ||
+      Array.isArray(data.purchases);
+
+    if (!hasERPData) {
       return res.status(400).json({
         error: 'Invalid NEW WE-CARE ERP backup'
       });
@@ -164,7 +214,7 @@ app.post('/api/restore', (req, res) => {
     const saved = writeStore(data);
 
     console.log(
-      'ERP backup restored successfully. Revision:',
+      'ERP BACKUP RESTORED - Revision:',
       saved.revision
     );
 
@@ -174,31 +224,29 @@ app.post('/api/restore', (req, res) => {
       revision: saved.revision
     });
 
-  } catch (e) {
-
-    console.error('Restore error:', e);
+  } catch (error) {
+    console.error('RESTORE ERROR:', error);
 
     return res.status(500).json({
-      error: e.message
+      error: error.message
     });
   }
 });
 
+/* =========================
+   FRONTEND FALLBACK
+   MUST BE LAST
+========================= */
 
-/* FRONTEND - MUST BE LAST */
-
-app.get('/*splat', (req, res) => {
+app.get('*splat', (req, res) => {
   res.sendFile(
-    path.join(
-      ROOT,
-      'erp',
-      'index.html'
-    )
+    path.join(ROOT, 'erp', 'index.html')
   );
 });
 
-
-/* START */
+/* =========================
+   START SERVER
+========================= */
 
 ensureData();
 
