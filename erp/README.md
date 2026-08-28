@@ -22,18 +22,3 @@ Updated features:
 
 
 Format update: Quotation print now follows the supplied reference JPEG layout, while Sales Bill uses a separate Tax Invoice layout. Purchase remains a separate Purchase Bill layout.
-
-
-### Added CCTV Service Modules
-- Delivery Challan: customer-wise dispatch/return/installation/service challan with product, brand, model, serial number and quantity.
-- Product Warranty IN / OUT: customer-wise warranty/service intake and return tracking with serial, MAC address, IP address, warranty date, status and service notes.
-- CCTV Project: customer-wise project register with camera/device, brand, camera model, serial number, MAC address, IP address, quantity and remarks, plus A4 print/PDF.
-- Existing Quotation, Sales Bill and Purchase screens and their print formats are kept unchanged.
-
-
-### Warranty item-wise update
-- Warranty IN / OUT now uses the Item Master for item selection.
-- Brand and Model auto-fill from the selected item.
-- Category is stored with each warranty record.
-- MAC Address is shown and saved only when the selected item is a CCTV camera.
-- Warranty print shows the MAC column only for CCTV camera items.
