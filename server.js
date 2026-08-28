@@ -1,3 +1,4 @@
+```js
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -17,13 +18,9 @@ app.use(express.json({ limit: '10mb' }));
 
 // Serve ERP frontend
 app.use(express.static(ERP_DIR, {
-  etag: false,
+  index: 'index.html',
   maxAge: 0
 }));
-
-// --------------------------------------------------
-// DATA STORAGE
-// --------------------------------------------------
 
 function ensureData() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -39,15 +36,16 @@ function ensureData() {
       );
     }
 
-    const initialStore = {
-      revision: 1,
-      data: bundled
-    };
-
     fs.writeFileSync(
       DATA_FILE,
-      JSON.stringify(initialStore, null, 2),
-      'utf8'
+      JSON.stringify(
+        {
+          revision: 1,
+          data: bundled
+        },
+        null,
+        2
+      )
     );
   }
 }
@@ -68,22 +66,22 @@ function writeStore(data) {
     data: data
   };
 
-  const tmpFile = DATA_FILE + '.tmp';
+  const tempFile = DATA_FILE + '.tmp';
 
   fs.writeFileSync(
-    tmpFile,
-    JSON.stringify(next, null, 2),
-    'utf8'
+    tempFile,
+    JSON.stringify(next, null, 2)
   );
 
-  fs.renameSync(tmpFile, DATA_FILE);
+  fs.renameSync(tempFile, DATA_FILE);
 
   return next;
 }
 
-// --------------------------------------------------
-// HEALTH CHECK
-// --------------------------------------------------
+
+// =========================
+// HEALTH
+// =========================
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -92,17 +90,16 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// --------------------------------------------------
+
+// =========================
 // GET ERP DATA
-// --------------------------------------------------
+// =========================
 
 app.get('/api/data', (req, res) => {
   try {
     const store = readStore();
 
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
+    res.set('Cache-Control', 'no-store');
 
     if (req.query.meta === '1') {
       return res.json({
@@ -110,23 +107,25 @@ app.get('/api/data', (req, res) => {
       });
     }
 
-    return res.json(store);
+    res.json(store);
 
-  } catch (e) {
-    console.error('GET DATA ERROR:', e);
+  } catch (error) {
+    console.error('GET /api/data ERROR:', error);
 
-    return res.status(500).json({
-      error: e.message
+    res.status(500).json({
+      error: error.message
     });
   }
 });
 
-// --------------------------------------------------
+
+// =========================
 // SAVE ERP DATA
-// --------------------------------------------------
+// =========================
 
 app.put('/api/data', (req, res) => {
   try {
+
     if (
       !req.body ||
       typeof req.body !== 'object' ||
@@ -139,61 +138,55 @@ app.put('/api/data', (req, res) => {
 
     const store = writeStore(req.body);
 
-    return res.json({
+    res.json({
       ok: true,
       revision: store.revision
     });
 
-  } catch (e) {
-    console.error('PUT DATA ERROR:', e);
+  } catch (error) {
 
-    return res.status(500).json({
-      error: e.message
+    console.error('PUT /api/data ERROR:', error);
+
+    res.status(500).json({
+      error: error.message
     });
   }
 });
 
-// --------------------------------------------------
+
+// =========================
 // FRONTEND FALLBACK
 // IMPORTANT:
-// Do NOT use app.get('*') with new Express/router.
-// --------------------------------------------------
+// DO NOT USE app.get('*')
+// =========================
 
 app.use((req, res, next) => {
 
-  // Never redirect API errors to index.html
-  if (req.path.startsWith('/api/')) {
-    return next();
+  if (
+    req.method === 'GET' &&
+    !req.path.startsWith('/api/')
+  ) {
+
+    return res.sendFile(
+      path.join(ERP_DIR, 'index.html')
+    );
   }
 
-  const indexFile = path.join(ERP_DIR, 'index.html');
-
-  if (!fs.existsSync(indexFile)) {
-    return res.status(404).send('ERP index.html not found');
-  }
-
-  res.sendFile(indexFile);
+  next();
 });
 
-// --------------------------------------------------
-// 404
-// --------------------------------------------------
 
-app.use((req, res) => {
-  res.status(404).json({
-    error: 'Not Found',
-    path: req.path
-  });
-});
-
-// --------------------------------------------------
-// START SERVER
-// --------------------------------------------------
+// =========================
+// START
+// =========================
 
 ensureData();
 
 app.listen(PORT, HOST, () => {
+
   console.log(
-    `NEW WE-CARE ERP running on http://${HOST}:${PORT}`
+    `NEW WE-CARE ERP running on ${HOST}:${PORT}`
   );
+
 });
+```
