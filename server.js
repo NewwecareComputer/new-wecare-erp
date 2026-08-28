@@ -10,23 +10,14 @@ const HOST = '0.0.0.0';
 const ROOT = __dirname;
 const ERP_DIR = path.join(ROOT, 'erp');
 const DATA_DIR = path.join(ROOT, 'data');
-
 const DATA_FILE = path.join(DATA_DIR, 'erp-data.json');
 const INITIAL_FILE = path.join(DATA_DIR, 'initial-data.json');
 
+app.use(express.json({ limit: '20mb' }));
 
-// ========================================
-// MIDDLEWARE
-// ========================================
-
-app.use(express.json({
-  limit: '10mb'
-}));
-
-
-// ========================================
-// SERVE ERP FRONTEND
-// ========================================
+/* =========================================================
+   STATIC ERP
+========================================================= */
 
 app.use(express.static(ERP_DIR, {
   index: 'index.html',
@@ -34,67 +25,53 @@ app.use(express.static(ERP_DIR, {
 }));
 
 
-// ========================================
-// ENSURE DATA STORAGE
-// ========================================
+/* =========================================================
+   FILE DATA STORAGE
+========================================================= */
 
 function ensureData() {
 
   if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, {
-      recursive: true
-    });
+    fs.mkdirSync(DATA_DIR, { recursive: true });
   }
 
   if (!fs.existsSync(DATA_FILE)) {
 
     let bundled = {};
 
-    try {
+    if (fs.existsSync(INITIAL_FILE)) {
 
-      if (fs.existsSync(INITIAL_FILE)) {
+      try {
 
         bundled = JSON.parse(
-          fs.readFileSync(
-            INITIAL_FILE,
-            'utf8'
-          )
+          fs.readFileSync(INITIAL_FILE, 'utf8')
         );
 
+      } catch (err) {
+
+        console.error(
+          'initial-data.json error:',
+          err.message
+        );
+
+        bundled = {};
       }
-
-    } catch (error) {
-
-      console.error(
-        'INITIAL DATA ERROR:',
-        error
-      );
-
-      bundled = {};
-
     }
-
-    const initialStore = {
-      revision: 1,
-      data: bundled
-    };
 
     fs.writeFileSync(
       DATA_FILE,
       JSON.stringify(
-        initialStore,
+        {
+          revision: 1,
+          data: bundled
+        },
         null,
         2
-      ),
-      'utf8'
+      )
     );
   }
 }
 
-
-// ========================================
-// READ ERP STORE
-// ========================================
 
 function readStore() {
 
@@ -102,59 +79,43 @@ function readStore() {
 
   try {
 
-    const content = fs.readFileSync(
-      DATA_FILE,
-      'utf8'
+    return JSON.parse(
+      fs.readFileSync(DATA_FILE, 'utf8')
     );
 
-    return JSON.parse(content);
-
-  } catch (error) {
+  } catch (err) {
 
     console.error(
-      'READ STORE ERROR:',
-      error
+      'readStore error:',
+      err.message
     );
 
     return {
       revision: 1,
       data: {}
     };
-
   }
 }
 
-
-// ========================================
-// WRITE ERP STORE
-// ========================================
 
 function writeStore(data) {
 
   const current = readStore();
 
   const next = {
-    revision:
-      Number(current.revision || 0) + 1,
-
+    revision: Number(current.revision || 0) + 1,
     data: data
   };
 
-  const temporaryFile =
-    DATA_FILE + '.tmp';
+  const tempFile = DATA_FILE + '.tmp';
 
   fs.writeFileSync(
-    temporaryFile,
-    JSON.stringify(
-      next,
-      null,
-      2
-    ),
-    'utf8'
+    tempFile,
+    JSON.stringify(next, null, 2)
   );
 
   fs.renameSync(
-    temporaryFile,
+    tempFile,
     DATA_FILE
   );
 
@@ -162,219 +123,275 @@ function writeStore(data) {
 }
 
 
-// ========================================
-// HEALTH CHECK
-// ========================================
+/* =========================================================
+   HEALTH
+========================================================= */
 
-app.get(
-  '/api/health',
-  function (req, res) {
+app.get('/api/health', (req, res) => {
 
-    res.json({
-      ok: true,
-      service: 'NEW WE-CARE ERP'
-    });
+  res.json({
+    ok: true,
+    service: 'NEW WE-CARE ERP',
+    api: true
+  });
 
-  }
-);
+});
 
 
-// ========================================
-// GET ERP DATA
-// ========================================
+/* =========================================================
+   AUTH - LOGIN
+========================================================= */
 
-app.get(
-  '/api/data',
-  function (req, res) {
+app.post('/api/auth/login', (req, res) => {
 
-    try {
+  try {
 
-      const store = readStore();
+    const username =
+      String(req.body?.username || '').trim();
 
-      res.set(
-        'Cache-Control',
-        'no-store, no-cache, must-revalidate, proxy-revalidate'
-      );
+    const password =
+      String(req.body?.password || '');
 
-      res.set(
-        'Pragma',
-        'no-cache'
-      );
+    if (!username || !password) {
 
-      res.set(
-        'Expires',
-        '0'
-      );
-
-
-      // Only revision
-      if (req.query.meta === '1') {
-
-        return res.json({
-          revision: store.revision
-        });
-
-      }
-
-
-      // Complete ERP data
-      return res.json(store);
-
-    } catch (error) {
-
-      console.error(
-        'GET /api/data ERROR:',
-        error
-      );
-
-      return res.status(500).json({
-        error: error.message
+      return res.status(400).json({
+        ok: false,
+        error: 'Username and password required'
       });
-
     }
 
-  }
-);
 
+    /*
+      TEMPORARY BUILT-IN LOGIN
 
-// ========================================
-// SAVE ERP DATA
-// ========================================
+      Admin:
+      admin / admin123
 
-app.put(
-  '/api/data',
-  function (req, res) {
+      Staff:
+      staff / staff123
+    */
 
-    try {
-
-      if (
-        !req.body ||
-        typeof req.body !== 'object' ||
-        Array.isArray(req.body)
-      ) {
-
-        return res.status(400).json({
-          error: 'Invalid ERP data'
-        });
-
-      }
-
-      const store = writeStore(
-        req.body
-      );
+    if (
+      username === 'admin' &&
+      password === 'admin123'
+    ) {
 
       return res.json({
         ok: true,
-        revision: store.revision
+        user: {
+          username: 'admin',
+          role: 'admin',
+          name: 'Administrator'
+        }
       });
-
-    } catch (error) {
-
-      console.error(
-        'PUT /api/data ERROR:',
-        error
-      );
-
-      return res.status(500).json({
-        error: error.message
-      });
-
     }
 
-  }
-);
-
-
-// ========================================
-// FRONTEND FALLBACK
-//
-// IMPORTANT:
-// Do NOT use app.get('*')
-// because newer Express/path-to-regexp
-// versions reject '*'
-// ========================================
-
-app.use(
-  function (req, res, next) {
 
     if (
-      req.method === 'GET' &&
-      !req.path.startsWith('/api/')
+      username === 'staff' &&
+      password === 'staff123'
     ) {
 
-      const indexFile =
-        path.join(
-          ERP_DIR,
-          'index.html'
-        );
-
-      if (fs.existsSync(indexFile)) {
-
-        return res.sendFile(
-          indexFile
-        );
-
-      }
-
+      return res.json({
+        ok: true,
+        user: {
+          username: 'staff',
+          role: 'staff',
+          name: 'Staff'
+        }
+      });
     }
 
-    return next();
 
-  }
-);
-
-
-// ========================================
-// API 404
-// ========================================
-
-app.use(
-  '/api',
-  function (req, res) {
-
-    res.status(404).json({
-      error: 'API endpoint not found',
-      path: req.path
+    return res.status(401).json({
+      ok: false,
+      error: 'Invalid username or password'
     });
 
-  }
-);
-
-
-// ========================================
-// GENERAL ERROR HANDLER
-// ========================================
-
-app.use(
-  function (error, req, res, next) {
+  } catch (err) {
 
     console.error(
-      'SERVER ERROR:',
-      error
+      'LOGIN ERROR:',
+      err
     );
 
-    if (res.headersSent) {
-      return next(error);
+    res.status(500).json({
+      ok: false,
+      error: 'Login failed'
+    });
+  }
+
+});
+
+
+/* =========================================================
+   AUTH - CURRENT USER
+========================================================= */
+
+app.get('/api/auth/me', (req, res) => {
+
+  /*
+    Frontend can call this endpoint.
+
+    No server-side session is required in this
+    simple version.
+  */
+
+  res.json({
+    ok: false,
+    authenticated: false,
+    user: null
+  });
+
+});
+
+
+/* =========================================================
+   AUTH - LOGOUT
+========================================================= */
+
+app.post('/api/auth/logout', (req, res) => {
+
+  res.json({
+    ok: true,
+    message: 'Logged out'
+  });
+
+});
+
+
+/* =========================================================
+   GET ERP DATA
+========================================================= */
+
+app.get('/api/data', (req, res) => {
+
+  try {
+
+    const store = readStore();
+
+    res.set(
+      'Cache-Control',
+      'no-store, no-cache, must-revalidate, proxy-revalidate'
+    );
+
+    if (req.query.meta === '1') {
+
+      return res.json({
+        revision: store.revision
+      });
     }
 
-    res.status(500).json({
-      error: error.message || 'Server error'
+    return res.json(store);
+
+  } catch (err) {
+
+    console.error(
+      'GET /api/data ERROR:',
+      err
+    );
+
+    return res.status(500).json({
+      ok: false,
+      error: err.message
+    });
+  }
+
+});
+
+
+/* =========================================================
+   SAVE ERP DATA
+========================================================= */
+
+app.put('/api/data', (req, res) => {
+
+  try {
+
+    if (
+      !req.body ||
+      typeof req.body !== 'object' ||
+      Array.isArray(req.body)
+    ) {
+
+      return res.status(400).json({
+        ok: false,
+        error: 'Invalid ERP data'
+      });
+    }
+
+    const store = writeStore(req.body);
+
+    return res.json({
+      ok: true,
+      revision: store.revision
     });
 
+  } catch (err) {
+
+    console.error(
+      'PUT /api/data ERROR:',
+      err
+    );
+
+    return res.status(500).json({
+      ok: false,
+      error: err.message
+    });
   }
-);
+
+});
 
 
-// ========================================
-// START SERVER
-// ========================================
+/* =========================================================
+   API 404
+========================================================= */
+
+app.use('/api', (req, res) => {
+
+  res.status(404).json({
+    ok: false,
+    error: 'API endpoint not found',
+    method: req.method,
+    path: req.path
+  });
+
+});
+
+
+/* =========================================================
+   FRONTEND FALLBACK
+   IMPORTANT:
+   DO NOT USE app.get('*')
+========================================================= */
+
+app.use((req, res, next) => {
+
+  if (req.method === 'GET') {
+
+    const indexFile =
+      path.join(ERP_DIR, 'index.html');
+
+    if (fs.existsSync(indexFile)) {
+
+      return res.sendFile(indexFile);
+    }
+  }
+
+  next();
+});
+
+
+/* =========================================================
+   START
+========================================================= */
 
 ensureData();
 
 app.listen(
   PORT,
   HOST,
-  function () {
+  () => {
 
     console.log(
       'NEW WE-CARE ERP running on http://' +
