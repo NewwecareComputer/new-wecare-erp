@@ -80,6 +80,42 @@ app.post('/api/restore', (req, res) => {
     const store=writeStore(req.body);
     res.json({ok:true,revision:store.revision});
   }catch(e){ res.status(500).json({error:e.message}); }
+});app.post('/api/restore', (req, res) => {
+  try {
+    const backup = req.body;
+
+    if (!backup || typeof backup !== 'object') {
+      return res.status(400).json({
+        error: 'Invalid backup JSON'
+      });
+    }
+
+    const data =
+      backup.data && typeof backup.data === 'object'
+        ? backup.data
+        : backup;
+
+    if (!data.company && !data.products && !data.customers) {
+      return res.status(400).json({
+        error: 'Invalid NEW WE-CARE ERP backup'
+      });
+    }
+
+    const saved = writeStore(data);
+
+    return res.json({
+      ok: true,
+      message: 'ERP backup restored successfully',
+      revision: saved.revision
+    });
+
+  } catch (e) {
+    console.error('Restore error:', e);
+
+    return res.status(500).json({
+      error: e.message
+    });
+  }
 });
 
 app.get('/*splat', (req, res) => {
