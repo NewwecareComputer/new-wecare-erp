@@ -6,211 +6,107 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#401477">
   <title>New We-Care Computer ERP</title>
-
   <link rel="stylesheet" href="assets/style.css">
-
   <style>
-    /* =========================
-       LOGIN SCREEN
-    ========================= */
+    body.login-mode .app {
+      display: none !important;
+    }
 
     #loginScreen {
       position: fixed;
       inset: 0;
       z-index: 99999;
-      background: linear-gradient(135deg,#401477,#6d2bb3);
       display: flex;
       align-items: center;
       justify-content: center;
+      background: #f5f3f8;
       padding: 20px;
     }
 
-    .loginBox {
-      width: 100%;
-      max-width: 420px;
+    .login-card {
+      width: min(420px, 100%);
       background: #fff;
-      border-radius: 18px;
-      padding: 32px;
-      box-shadow: 0 20px 60px rgba(0,0,0,.25);
-    }
-
-    .loginLogo {
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 15px 45px rgba(0,0,0,.15);
       text-align: center;
-      margin-bottom: 25px;
     }
 
-    .loginLogo h1 {
-      margin: 0;
-      color: #401477;
-      font-size: 28px;
-      font-weight: 800;
+    .login-card h2 {
+      margin: 20px 0 8px;
     }
 
-    .loginLogo p {
-      margin: 5px 0 0;
-      color: #666;
-      font-size: 13px;
+    .login-card form {
+      display: grid;
+      gap: 12px;
+      margin-top: 20px;
     }
 
-    .loginBox label {
-      display: block;
-      margin: 15px 0 7px;
-      font-weight: 600;
-      color: #333;
-    }
-
-    .loginBox input {
+    .login-card input {
       width: 100%;
       box-sizing: border-box;
-      padding: 13px 14px;
-      border: 1px solid #ccc;
-      border-radius: 9px;
-      font-size: 16px;
-      outline: none;
+      padding: 12px;
+      border: 1px solid #d7d2df;
+      border-radius: 8px;
+      font-size: 15px;
     }
 
-    .loginBox input:focus {
-      border-color: #401477;
-      box-shadow: 0 0 0 2px rgba(64,20,119,.1);
-    }
-
-    #loginBtn {
-      width: 100%;
-      margin-top: 22px;
-      padding: 14px;
+    .login-card button {
+      padding: 12px;
       border: 0;
-      border-radius: 9px;
-      background: #401477;
-      color: white;
-      font-size: 17px;
-      font-weight: 700;
+      border-radius: 8px;
       cursor: pointer;
     }
 
-    #loginBtn:hover {
-      opacity: .92;
-    }
-
-    #loginError {
-      display: none;
-      margin-top: 15px;
-      padding: 10px;
-      border-radius: 8px;
-      background: #ffe8e8;
-      color: #b00020;
-      text-align: center;
+    .login-error {
+      min-height: 20px;
+      color: #b42318;
       font-size: 14px;
-    }
-
-    .loginHint {
-      margin-top: 18px;
-      text-align: center;
-      color: #777;
-      font-size: 12px;
-    }
-
-    /* Staff restrictions */
-    body.staffUser .nav[data-page="products"],
-    body.staffUser .nav[data-page="customers"],
-    body.staffUser .nav[data-page="suppliers"],
-    body.staffUser .nav[data-page="sales"],
-    body.staffUser .nav[data-page="quotations"],
-    body.staffUser .nav[data-page="purchases"],
-    body.staffUser .nav[data-page="warranties"],
-    body.staffUser .nav[data-page="cctvProjects"],
-    body.staffUser .nav[data-page="company"],
-    body.staffUser .nav[data-page="reports"],
-    body.staffUser .nav[data-page="settings"] {
-      display: none;
-    }
-
-    body.staffUser .nav[data-page="dashboard"] {
-      display: block;
-    }
-
-    body.staffUser #exportBackupBtn {
-      display: none;
-    }
-
-    @media(max-width:700px) {
-      .loginBox {
-        padding: 25px 20px;
-      }
     }
   </style>
 </head>
 
-<body>
-
-  <!-- =========================
-       LOGIN SCREEN
-  ========================== -->
+<body class="login-mode">
 
   <div id="loginScreen">
+    <div class="login-card">
 
-    <div class="loginBox">
-
-      <div class="loginLogo">
-        <h1>NEW WE-CARE</h1>
-        <p>COMPUTER ERP</p>
+      <div class="brand">
+        NEW WE-CARE<br>
+        <span>COMPUTER ERP</span>
       </div>
 
+      <h2>Login</h2>
+
       <form id="loginForm">
-
-        <label for="loginUsername">
-          Username
-        </label>
-
         <input
           id="loginUsername"
           type="text"
           autocomplete="username"
-          placeholder="Enter username"
+          placeholder="Username"
           required
         >
-
-        <label for="loginPassword">
-          Password
-        </label>
 
         <input
           id="loginPassword"
           type="password"
           autocomplete="current-password"
-          placeholder="Enter password"
+          placeholder="Password"
           required
         >
 
-        <button
-          id="loginBtn"
-          type="submit"
-        >
+        <button class="primary" type="submit">
           Login
         </button>
 
-        <div id="loginError"></div>
-
+        <div id="loginError" class="login-error"></div>
       </form>
 
-      <div class="loginHint">
-        NEW WE-CARE COMPUTER<br>
-        CCTV • COMPUTER • NETWORKING • SECURITY
-      </div>
-
     </div>
-
   </div>
 
 
-  <!-- =========================
-       ERP APPLICATION
-  ========================== -->
-
-  <div
-    class="app"
-    id="erpApp"
-    style="display:none;"
-  >
+  <div class="app">
 
     <aside class="sidebar">
 
@@ -219,94 +115,55 @@
         <span>COMPUTER ERP</span>
       </div>
 
-      <button
-        class="nav active"
-        data-page="dashboard"
-      >
+      <button class="nav active" data-page="dashboard">
         Dashboard
       </button>
 
-      <button
-        class="nav"
-        data-page="products"
-      >
+      <button class="nav" data-page="products">
         Inventory
       </button>
 
-      <button
-        class="nav"
-        data-page="customers"
-      >
+      <button class="nav" data-page="customers">
         Customers
       </button>
 
-      <button
-        class="nav"
-        data-page="suppliers"
-      >
+      <button class="nav" data-page="suppliers">
         Suppliers
       </button>
 
-      <button
-        class="nav"
-        data-page="sales"
-      >
+      <button class="nav" data-page="sales">
         Sales Bill
       </button>
 
-      <button
-        class="nav"
-        data-page="quotations"
-      >
+      <button class="nav" data-page="quotations">
         Quotation
       </button>
 
-      <button
-        class="nav"
-        data-page="purchases"
-      >
+      <button class="nav" data-page="purchases">
         Purchase
       </button>
 
-      <button
-        class="nav"
-        data-page="deliveryChallans"
-      >
+      <button class="nav" data-page="deliveryChallans">
         Delivery Challan
       </button>
 
-      <button
-        class="nav"
-        data-page="warranties"
-      >
+      <button class="nav" data-page="warranties">
         Warranty In / Out
       </button>
 
-      <button
-        class="nav"
-        data-page="cctvProjects"
-      >
+      <button class="nav" data-page="cctvProjects">
         CCTV Projects
       </button>
 
-      <button
-        class="nav"
-        data-page="company"
-      >
+      <button class="nav" data-page="company">
         Company Profile
       </button>
 
-      <button
-        class="nav"
-        data-page="reports"
-      >
+      <button class="nav" data-page="reports">
         Reports
       </button>
 
-      <button
-        class="nav"
-        data-page="settings"
-      >
+      <button class="nav" data-page="settings">
         Settings
       </button>
 
@@ -322,21 +179,14 @@
         ☰
       </button>
 
-
       <header>
 
         <div>
-
-          <h1 id="pageTitle">
-            Dashboard
-          </h1>
-
+          <h1 id="pageTitle">Dashboard</h1>
           <small>
             CCTV • Computer • Printer • Networking • Security Solutions
           </small>
-
         </div>
-
 
         <div class="headerUser">
 
@@ -360,7 +210,6 @@
         </div>
 
       </header>
-
 
       <section id="content"></section>
 
@@ -394,267 +243,7 @@
   </div>
 
 
-  <!-- Existing ERP application -->
   <script src="assets/app.js"></script>
-
-
-  <!-- =========================
-       LOGIN CONTROLLER
-  ========================== -->
-
-  <script>
-
-    const loginScreen =
-      document.getElementById('loginScreen');
-
-    const erpApp =
-      document.getElementById('erpApp');
-
-    const loginForm =
-      document.getElementById('loginForm');
-
-    const loginError =
-      document.getElementById('loginError');
-
-    const loginBtn =
-      document.getElementById('loginBtn');
-
-
-    function showLogin() {
-
-      loginScreen.style.display = 'flex';
-      erpApp.style.display = 'none';
-
-      document.body.classList.remove(
-        'staffUser'
-      );
-    }
-
-
-    function showERP(user) {
-
-      loginScreen.style.display = 'none';
-      erpApp.style.display = 'flex';
-
-      const roleElement =
-        document.getElementById('userRole');
-
-      if (user.role === 'admin') {
-
-        roleElement.textContent =
-          '👑 Admin';
-
-        document.body.classList.remove(
-          'staffUser'
-        );
-
-      } else {
-
-        roleElement.textContent =
-          '👤 Staff';
-
-        document.body.classList.add(
-          'staffUser'
-        );
-      }
-
-      /*
-        Dashboard open after login.
-      */
-
-      try {
-
-        if (typeof render === 'function') {
-          render('dashboard');
-        }
-
-      } catch (err) {
-
-        console.error(
-          'ERP render error:',
-          err
-        );
-      }
-    }
-
-
-    loginForm.addEventListener(
-      'submit',
-      async function(event) {
-
-        event.preventDefault();
-
-        loginError.style.display = 'none';
-
-        const username =
-          document.getElementById(
-            'loginUsername'
-          ).value.trim();
-
-        const password =
-          document.getElementById(
-            'loginPassword'
-          ).value;
-
-
-        if (!username || !password) {
-
-          loginError.textContent =
-            'Please enter username and password';
-
-          loginError.style.display = 'block';
-
-          return;
-        }
-
-
-        loginBtn.disabled = true;
-        loginBtn.textContent = 'Logging in...';
-
-
-        try {
-
-          const response =
-            await fetch(
-              '/api/auth/login',
-              {
-                method: 'POST',
-
-                headers: {
-                  'Content-Type':
-                    'application/json'
-                },
-
-                body: JSON.stringify({
-                  username,
-                  password
-                })
-              }
-            );
-
-
-          const result =
-            await response.json();
-
-
-          if (
-            !response.ok ||
-            !result.ok
-          ) {
-
-            throw new Error(
-              result.error ||
-              'Invalid username or password'
-            );
-          }
-
-
-          /*
-            Store login locally so page refresh
-            does not immediately return to login.
-          */
-
-          localStorage.setItem(
-            'new_wecare_logged_user',
-            JSON.stringify(result.user)
-          );
-
-
-          showERP(result.user);
-
-
-        } catch (error) {
-
-          console.error(
-            'Login error:',
-            error
-          );
-
-          loginError.textContent =
-            error.message ||
-            'Login failed';
-
-          loginError.style.display =
-            'block';
-
-        } finally {
-
-          loginBtn.disabled = false;
-          loginBtn.textContent = 'Login';
-
-        }
-
-      }
-    );
-
-
-    function logout() {
-
-      localStorage.removeItem(
-        'new_wecare_logged_user'
-      );
-
-      showLogin();
-
-      document.getElementById(
-        'loginPassword'
-      ).value = '';
-
-    }
-
-
-    /*
-      Check existing login
-    */
-
-    (function checkLogin() {
-
-      try {
-
-        const saved =
-          localStorage.getItem(
-            'new_wecare_logged_user'
-          );
-
-
-        if (saved) {
-
-          const user =
-            JSON.parse(saved);
-
-
-          if (
-            user &&
-            (
-              user.role === 'admin' ||
-              user.role === 'staff'
-            )
-          ) {
-
-            showERP(user);
-
-            return;
-          }
-        }
-
-      } catch (error) {
-
-        console.error(
-          'Saved login error:',
-          error
-        );
-
-        localStorage.removeItem(
-          'new_wecare_logged_user'
-        );
-      }
-
-
-      showLogin();
-
-    })();
-
-  </script>
 
 </body>
 </html>
